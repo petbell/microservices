@@ -1,0 +1,16 @@
+  fastapi_app:
+    image: microservices
+    build: ./fastapidir
+    environment:
+      - DB_HOST=order_db
+      - DB_PORT=5432
+      - DB_NAME=order_db
+      - DB_USER=petbell
+      - DB_PASSWORD=i12pose
+    
+    ports:
+      - 8000:8000
+    depends_on:
+      - order_db
+    networks:
+      - micro_network

@@ -1,0 +1,92 @@
+#version: '3.9' 
+services:
+  # product_db postgres database
+  product_db:
+    image: postgres:17
+    environment:
+    # use key-value pairs instead of colon-separated values
+      # - POSTGRES_USER=petbell (list of strings)
+      - POSTGRES_USER=petbell
+      - POSTGRES_PASSWORD=i12pose
+      - POSTGRES_DB=product_db
+    # or use colon separated values without the preceding hyphens
+    volumes:
+      - product_db_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    networks:
+      - micro_network
+  
+  # order_db postgres database
+  order_db:
+    image: postgres:17
+    environment:
+    # or use colon separated values without the preceding hyphens
+      #  POSTGRES_USER: petbell (mapping)
+      POSTGRES_USER: petbell
+      POSTGRES_PASSWORD: i12pose
+      POSTGRES_DB: order_db
+    volumes:
+      - order_db_data:/var/lib/postgresql/data
+    ports:
+      - "5433:5432"
+    networks:
+      - micro_network
+
+  # adminer service for database management
+  adminer:
+    image: adminer
+    restart: always
+    ports:
+      - 8080:8080
+    networks:
+      - micro_network
+  # fastAPI app with order_db postgres database
+  fastapi_app:
+    image: microservices
+    build: ./fastapidir
+    environment:
+      - DB_HOST=order_db
+      - DB_PORT=5432
+      - DB_NAME=order_db
+      - DB_USER=petbell
+      - DB_PASSWORD=i12pose
+    
+    ports:
+      - 8000:8000
+    depends_on:
+      - order_db
+    networks:
+      - micro_network
+      
+  
+
+  # flask app with product_db postgres database  
+  flask_app:
+    image: microservices 
+    build: 
+      context: .
+      dockerfile: flaskdir/Dockerfile
+    environment:
+      - FLASK_APP=flaskdir/flaskapp.py
+      - DB_HOST=product_db
+      - DB_PORT=5432
+      - DB_NAME=product_db
+      - DB_USER=petbell
+      - DB_PASSWORD=i12pose
+      
+    ports:
+      - 5000:5000
+    depends_on:
+      - product_db
+    networks:
+      - micro_network
+
+    
+volumes: 
+  product_db_data:
+  order_db_data:
+
+networks:
+  micro_network:
+    driver: bridge
