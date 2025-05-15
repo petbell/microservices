@@ -10,64 +10,35 @@ services:
       - POSTGRES_PASSWORD=i12pose
       - POSTGRES_DB=product_db
     # or use colon separated values without the preceding hyphens
+    restart: always
     volumes:
       - product_db_data:/var/lib/postgresql/data
+      - ./init_product:/docker-entrypoint-initdb.d
     ports:
       - "5432:5432"
     networks:
       - micro_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U petbell -d product_db"]
+      interval: 15s
+      timeout: 10s
+      retries: 7
   
-  # order_db postgres database
-  order_db:
-    image: postgres:17
-    environment:
-    # or use colon separated values without the preceding hyphens
-      #  POSTGRES_USER: petbell (mapping)
-      POSTGRES_USER: petbell
-      POSTGRES_PASSWORD: i12pose
-      POSTGRES_DB: order_db
-    volumes:
-      - order_db_data:/var/lib/postgresql/data
-    ports:
-      - "5433:5432"
-    networks:
-      - micro_network
-
-  # adminer service for database management
-  adminer:
-    image: adminer
-    restart: always
-    ports:
-      - 8080:8080
-    networks:
-      - micro_network
-  # fastAPI app with order_db postgres database
-  fastapi_app:
-    image: microservices
-    build: ./fastapidir
-    environment:
-      - DB_HOST=order_db
-      - DB_PORT=5432
-      - DB_NAME=order_db
-      - DB_USER=petbell
-      - DB_PASSWORD=i12pose
-    
-    ports:
-      - 8000:8000
-    depends_on:
-      - order_db
-    networks:
-      - micro_network
-      
-  
-
   # flask app with product_db postgres database  
   flask_app:
-    image: microservices 
+  # I need to remove the image name from here because uvicorn is being used as
+  # the entrypoint command in the Dockerfile for the flask app too.
+    # image: microservices 
     build: 
       context: .
-      dockerfile: flaskdir/Dockerfile
+      # adding the dockerfile suffix because make the dockerfile name unique
+      # and also to avoid confusion and conflicting entrypoints with the fastapi dockerfile
+      dockerfile: flaskdir/Dockerfile.flask
+    volumes:
+      - ./flaskdir:/app
     environment:
+      - FLASK_DEBUG=1
+      - FLASK_ENV=development
       - FLASK_APP=flaskdir/flaskapp.py
       - DB_HOST=product_db
       - DB_PORT=5432
@@ -78,14 +49,81 @@ services:
     ports:
       - 5000:5000
     depends_on:
-      - product_db
+      product_db:
+        condition: service_healthy
     networks:
       - micro_network
 
+  
+  # order_db postgres database
+  order_db:
+    image: postgres:17
+    restart: always
+    environment:
+    # or use colon separated values without the preceding hyphens
+      #  POSTGRES_USER: petbell (mapping)
+      POSTGRES_USER: petbell
+      POSTGRES_PASSWORD: i12pose
+      POSTGRES_DB: order_db
+      # PG_HBA_CONFIG: "host all all
+      # PG_HBA_CONFIG: "host all all 172.18.0.0/16 md5"
+    volumes:
+      - order_db_data:/var/lib/postgresql/data
+      - ./init_order:/docker-entrypoint-initdb.d
+    ports:
+      - "5433:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U petbell -d order_db"]
+      interval: 15s
+      timeout: 10s
+      retries: 8
+    networks:
+      - micro_network
+
+  # fastAPI app with order_db postgres database
+  fastapi_app:
+  # I need to remove the image name from here because uvicorn is being used as
+  # the entrypoint command in the Dockerfile for the flask app too.
+  #  image: microservices
     
-volumes: 
+    build: 
+      context: .
+      # adding the dockerfile suffix because make the dockerfile name unique
+      # and also to avoid confusion and conflicting entrypoints with the fastapi dockerfile
+      dockerfile: fastapidir/Dockerfile.fastapi
+    volumes:
+      - ./fastapidir:/app
+    environment:
+      - DB_HOST=order_db
+      - DB_PORT=5432
+      - DB_NAME=order_db
+      - DB_USER=petbell
+      - DB_PASSWORD=i12pose
+    
+    ports:
+      - 8000:8000
+    depends_on:
+      order_db:
+        condition: service_healthy
+    networks:
+      - micro_network
+      
+  # adminer service for database management
+  adminer:
+    image: adminer
+    restart: always
+    ports:
+      - 8080:8080
+    networks:
+      - micro_network
+  
+  
+  
+    
+volumes:      
   product_db_data:
   order_db_data:
+
 
 networks:
   micro_network:

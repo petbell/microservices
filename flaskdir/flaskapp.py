@@ -40,6 +40,32 @@ def get_products():
 
     except Exception as e:
         return {'error': str(e)}, 500
+
+@app.route('/products/<id>', methods=['GET'])
+def get_one_product(id):
+    try:
+        # Connect to the PostgreSQL database
+        conn = psycopg2.connect(**db_params)
+        cursor = conn.cursor()
+
+        # Execute a query to fetch a product by ID
+        query = sql.SQL("SELECT * FROM products WHERE id = %s")
+        cursor.execute(query, (id,))
+
+        # Fetch the result
+        product = cursor.fetchone()
+
+        # Close the cursor and connection
+        cursor.close()
+        conn.close()
+
+        if product:
+            return {'product': product}, 200
+        else:
+            return {'error': 'Product not found'}, 404
+
+    except Exception as e:
+        return {'error': str(e)}, 500
     
 @app.route('/products', methods=['POST'])
 def add_product ():
