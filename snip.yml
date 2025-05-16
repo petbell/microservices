@@ -59,3 +59,53 @@ location / {
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
     }
+
+
+    worker_processes 1;
+events { 
+    worker_connections 1024; 
+    }
+http {
+    upstream flaskserver {
+        server flask_app;   
+    }
+
+    upstream fastserver {
+        server fastapi_app;   
+    }
+    include       mime.types;
+    default_type  application/octet-stream;
+
+    sendfile        on;
+    keepalive_timeout  65;
+
+    gzip  on;
+    gzip_types text/plain application/json application/javascript text/css image/svg+xml image/x-icon;
+    gzip_min_length 1000;
+
+    
+
+server {
+    listen 80;
+    server_name localhost;
+
+    
+
+    location /products/ {
+        proxy_pass http://flaskserver:5000//;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    location /orders {
+        proxy_pass http://fastserver:8000/;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+    
+}
+}
