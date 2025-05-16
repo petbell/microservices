@@ -70,6 +70,7 @@ services:
     volumes:
       - order_db_data:/var/lib/postgresql/data
       - ./init_order:/docker-entrypoint-initdb.d
+    # port number changed to avoid conflict with the other postgres service
     ports:
       - "5433:5432"
     healthcheck:
@@ -117,7 +118,20 @@ services:
     networks:
       - micro_network
   
-  
+  nginx:
+    image: nginx:alpine
+    restart: unless-stopped
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf
+    ports:
+      - "80:80"
+    depends_on:
+      - flask_app
+        
+      - fastapi_app
+        
+    networks:
+      - micro_network  
   
     
 volumes:      
