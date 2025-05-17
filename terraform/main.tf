@@ -161,10 +161,22 @@ resource "aws_instance" "microec2_server" {
   
   user_data = <<-EOF
               #!/bin/bash
+              # udate the package index
               sudo apt update -y
-              sudo apt install -y docker.io
+              # install docker, curl and git
+              sudo apt install -y docker.io git curl
+              # start docker and enable it to start on boot
               sudo systemctl start docker
               sudo systemctl enable docker
+              
+              # sudo usermod -aG docker ubuntu
+              # delay for 10 seconds to ensure docker is up
+              sleep 10
+
+              # Install docker-compose
+              sudo curl -SL https://github.com/docker/compose/releases/download/v2.12.2/docker-compose-linux-x86_64 -o /usr/local/bin/docker-compose
+              sudo chmod +x /usr/local/bin/docker-compose
+              #clone the repo and start the docker containers
               git clone --single-branch --branch nginx https://github.com/petbell/microservices.git
               cd microservices
               sudo docker-compose up -d
